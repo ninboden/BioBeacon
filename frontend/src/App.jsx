@@ -1,85 +1,89 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react'; // Removed useEffect for now
 import reactLogo from './assets/react.svg';
 import viteLogo from '/vite.svg';
 import './App.css';
 
 function App() {
-  // State for loading status
-  const [isLoading, setIsLoading] = useState(true);
-  // State to store the array of grants fetched from the backend
-  const [grants, setGrants] = useState([]);
-  // State for any potential error messages
+  // State for input fields
+  const [name, setName] = useState('');
+  const [affiliation, setAffiliation] = useState('');
+
+  // State for the result from the backend POST request
+  const [processedData, setProcessedData] = useState(null);
+  // State for loading status during POST request
+  const [isLoading, setIsLoading] = useState(false);
+  // State for any potential error messages during POST request
   const [error, setError] = useState(null);
 
   // Backend API URL (from AWS App Runner)
   const backendUrl = 'https://jmpzukpkcs.us-east-2.awsapprunner.com';
-  // Define a sample keyword for testing
-  const searchKeyword = 'biology'; // Try changing this later (e.g., 'health', 'cancer')
 
-  // useEffect hook to fetch data when the component mounts
-  useEffect(() => {
-    setIsLoading(true); // Start loading
-    setError(null); // Clear previous errors
+  // Function to handle form submission
+  const handleProcessResearcher = (event) => {
+    event.preventDefault(); // Prevent default form submission if it were inside a <form>
+    setIsLoading(true);
+    setError(null);
+    setProcessedData(null); // Clear previous results
 
-    // Construct the URL with the query parameter
-    const apiUrl = `${backendUrl}/api/grants?keyword=${searchKeyword}`;
+    const apiUrl = `${backendUrl}/api/process-researcher`;
+    const requestBody = { name, affiliation };
 
-    // Use the fetch API to make a GET request to the backend grants endpoint
-    fetch(apiUrl)
+    console.log('Sending data to backend:', requestBody);
+
+    // Use fetch to make a POST request
+    fetch(apiUrl, {
+      method: 'POST', // Specify POST method
+      headers: {
+        'Content-Type': 'application/json', // Tell the server we're sending JSON
+      },
+      body: JSON.stringify(requestBody), // Convert the JS object to a JSON string
+    })
       .then(response => {
         if (!response.ok) {
-          // If response is not ok, try to parse error message from backend if available
+          // If response is not ok, try to parse error message from backend
           return response.json().then(errData => {
-            throw new Error(errData.message || `HTTP error! status: ${response.status}`);
+            throw new Error(errData.error || `HTTP error! status: ${response.status}`);
           }).catch(() => {
-             // Fallback if error response is not JSON or has no message
-             throw new Error(`HTTP error! status: ${response.status}`);
+            // Fallback if error response is not JSON or has no message
+            throw new Error(`HTTP error! status: ${response.status}`);
           });
         }
-        // Parse the response body as JSON (since the API now returns JSON)
+        // Parse the successful JSON response body
         return response.json();
       })
       .then(data => {
-        // Check if the backend sent a message (e.g., "No grants found...")
-        if (data.message) {
-           setError(data.message); // Set error state to display the message
-           setGrants([]); // Ensure grants list is empty
-        } else {
-          // Update the grants state with the array received from the backend
-          setGrants(data);
-        }
+        console.log('Received data from backend:', data);
+        // Update state with the data received (contains message, received data, mockKeywords)
+        setProcessedData(data);
         setIsLoading(false); // Stop loading
       })
       .catch(error => {
         // Handle any errors during the fetch operation
-        console.error('Error fetching data:', error);
-        setError(`Failed to fetch grants: ${error.message}`);
-        setGrants([]); // Ensure grants list is empty on error
+        console.error('Error processing researcher:', error);
+        setError(`Failed to process researcher: ${error.message}`);
         setIsLoading(false); // Stop loading
       });
-  }, []); // The empty dependency array [] means this effect runs only once when the component mounts
+  };
 
-  // Helper function to render the list of grants
-  const renderGrants = () => {
+  // Helper function to render the results area
+  const renderResults = () => {
     if (isLoading) {
-      return <p>Loading grants...</p>;
+      return <p>Processing...</p>;
     }
     if (error) {
-      return <p style={{ color: 'orange' }}>{error}</p>; // Display error message
+      return <p style={{ color: 'red' }}>Error: {error}</p>;
     }
-    if (grants.length === 0) {
-      return <p>No grants found for keyword "{searchKeyword}".</p>;
+    if (processedData) {
+      return (
+        <div>
+          <h4>{processedData.message}</h4>
+          <p>Received Name: {processedData.received?.name}</p>
+          <p>Received Affiliation: {processedData.received?.affiliation}</p>
+          <p>Mock Keywords: {processedData.mockKeywords?.join(', ')}</p>
+        </div>
+      );
     }
-
-    return (
-      <ul>
-        {grants.map(grant => (
-          <li key={grant.id}>
-            <strong>{grant.title}</strong> ({grant.agency}) - ${grant.amount.toLocaleString()}
-          </li>
-        ))}
-      </ul>
-    );
+    return null; // Render nothing if no action taken yet
   };
 
   // Render the component
@@ -93,16 +97,45 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      <h1>BioBeacon Grant Finder</h1>
+      <h1>BioBeacon Researcher Input</h1>
       <div className="card">
-        <h2>Grant Results for "{searchKeyword}"</h2>
-        {renderGrants()} {/* Call helper function to display results */}
+        {/* Input fields and button */}
+        {/* We use a div instead of form to avoid default form submission for simplicity here */}
+        <div>
+          <div>
+            <label htmlFor="nameInput">Name: </label>
+            <input
+              id="nameInput"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter researcher name"
+            />
+          </div>
+          <div style={{ marginTop: '10px', marginBottom: '10px' }}>
+            <label htmlFor="affiliationInput">Affiliation: </label>
+            <input
+              id="affiliationInput"
+              type="text"
+              value={affiliation}
+              onChange={(e) => setAffiliation(e.target.value)}
+              placeholder="Enter institutional affiliation"
+            />
+          </div>
+          <button onClick={handleProcessResearcher} disabled={isLoading}>
+            {isLoading ? 'Processing...' : 'Process Researcher'}
+          </button>
+        </div>
       </div>
-      <p className="read-the-docs">
-        (Mock data shown - API integration in progress)
-      </p>
+
+      {/* Area to display results from the backend */}
+      <div className="card">
+        <h2>Backend Response</h2>
+        {renderResults()}
+      </div>
     </>
   );
 }
 
 export default App;
+
