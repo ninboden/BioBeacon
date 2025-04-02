@@ -1,16 +1,18 @@
-// server.js - Backend attempting real API call with axios
+// server.js - Backend making real Perplexity API call
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios'); // Use axios
+const axios = require('axios');
 
+// --- Environment Variable Setup ---
 const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
 if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
-  console.warn('WARNING: PERPLEXITY_API_KEY environment variable not set or using placeholder.');
+  console.warn('WARNING: PERPLEXITY_API_KEY environment variable not set or using placeholder. Real API calls will fail.');
 } else {
   console.log('Perplexity API Key Status: Loaded successfully.');
 }
+// --- End Environment Variable Setup ---
 
 const app = express();
 app.use(cors());
@@ -50,7 +52,7 @@ app.get('/api/grants', (req, res) => {
   res.json(results);
 });
 
-// POST endpoint - Now attempts real API call
+// POST endpoint - Makes real Perplexity API call
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
   let actualProfile = null; // Variable to hold profile from API
@@ -63,70 +65,78 @@ app.post('/api/process-researcher', async (req, res) => {
     return res.status(400).json({ error: 'Missing name or affiliation in request body' });
   }
 
-  console.log('Attempting Perplexity API call...');
-  console.log('Perplexity API Key Status (in request):', perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder');
+  // Check if API key is loaded before attempting call
+  if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
+      console.error("Perplexity API Key is not configured correctly.");
+      return res.status(500).json({ error: "Server configuration error: Missing API Key" });
+  }
 
-  // --- Attempt Perplexity API Call ---
+  console.log('Attempting real Perplexity API call...');
+
+  // --- Perplexity API Call ---
   try {
-    // --- IMPORTANT: Replace with ACTUAL Perplexity API details ---
-    const perplexityApiUrl = 'https://api.perplexity.ai/some/endpoint'; // <-- Replace with real URL
-    const requestData = { // <-- Adjust payload based on API docs
-      query: `Generate a concise researcher profile for ${name} affiliated with ${affiliation}.`,
-      model: "sonar-medium-online" // Example: Specify a model if required
+    const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
+    const requestData = {
+      model: "sonar-deep-research",// Or "sonar-medium-online", etc. Choose appropriate model
+      messages: [
+        {
+          role: "system",
+          content: "Generate a concise, professional researcher profile suitable for finding grant keywords. Focus on likely research areas based on name and affiliation."
+        },
+        {
+          role: "user",
+          content: `Generate profile for ${name}, affiliated with ${affiliation}.`
+        }
+      ],
+      // Optional parameters (refer to Perplexity docs)
+      // max_tokens: 150,
+      // temperature: 0.7,
     };
-    const headers = { // <-- Adjust headers based on API docs
+    const headers = {
       'Authorization': `Bearer ${perplexityApiKey}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     };
-    // --- End of details to replace ---
 
-    // Make the actual API call using axios
+    // Make the API call using axios
     const response = await axios.post(perplexityApiUrl, requestData, { headers });
 
     console.log('Perplexity API Response Status:', response.status);
-    console.log('Perplexity API Response Data:', response.data); // Log raw response for debugging
+    // console.log('Perplexity API Response Data:', JSON.stringify(response.data, null, 2)); // Log formatted JSON
 
-    // --- IMPORTANT: Extract profile based on ACTUAL API response structure ---
-    // This is a GUESS - adjust based on Perplexity's response format
-    actualProfile = response.data?.choices?.[0]?.message?.content || response.data?.profile || JSON.stringify(response.data);
-    console.log('Extracted Profile:', actualProfile);
-    // --- End of extraction logic ---
+    // Extract profile from response - **Adjust based on actual Perplexity response structure**
+    // Common structure for chat completions:
+    if (response.data && response.data.choices && response.data.choices.length > 0 && response.data.choices[0].message) {
+       actualProfile = response.data.choices[0].message.content;
+       console.log('Successfully extracted profile from choices[0].message.content');
+    } else {
+       console.warn('Could not find profile in expected location (response.data.choices[0].message.content). Logging raw data.');
+       actualProfile = JSON.stringify(response.data); // Fallback to raw data string
+    }
 
   } catch (error) {
-    // Log detailed error information
     console.error('Error calling Perplexity API:');
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       console.error('  Status:', error.response.status);
       console.error('  Headers:', error.response.headers);
       console.error('  Data:', error.response.data);
     } else if (error.request) {
-      // The request was made but no response was received
       console.error('  Request:', error.request);
       console.error('  Error: No response received from Perplexity API.');
     } else {
-      // Something happened in setting up the request that triggered an Error
       console.error('  Error Message:', error.message);
     }
-    // Send an error response back to the client
     return res.status(500).json({
         error: "Failed to call Perplexity API",
-        details: error.response ? error.response.data : error.message // Provide details if possible
+        details: error.response ? error.response.data : error.message
     });
   }
-  // --- End API Call Attempt ---
-
-
-  // --- Placeholder for future logic ---
-  // TODO: Call ChatGPT API with actualProfile to get keywords
-  // TODO: Call Grants.gov API with keywords
+  // --- End API Call ---
 
   res.json({
-    message: "Processing request complete (API call attempted).", // Updated message
+    message: "Successfully processed researcher and called Perplexity API.", // Updated message
     received: { name, affiliation },
-    profile: actualProfile, // Send back the profile received (or null if error occurred before this)
+    profile: actualProfile, // Send back the actual profile
     // Keep mock keywords for now, replace later
     mockKeywords: ["grant", "research", name.toLowerCase().split(' ')[0], affiliation.toLowerCase().split(' ')[0]]
   });
