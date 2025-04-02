@@ -1,38 +1,23 @@
-// server.js - Backend with setup for real API calls (dotenv, axios)
+// server.js - Backend attempting real API call with axios
 
-// Load environment variables from .env file (for local development)
-// IMPORTANT: This line MUST be at the very top BEFORE accessing process.env
 require('dotenv').config();
-
-// Import necessary libraries
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios'); // Added axios for making HTTP requests
+const axios = require('axios'); // Use axios
 
-// --- Environment Variable Check ---
-// Access the API key from environment variables
 const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
-
-// Log the status of the API key loading (helps debugging)
 if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
   console.warn('WARNING: PERPLEXITY_API_KEY environment variable not set or using placeholder.');
 } else {
-  console.log('Perplexity API Key Status: Loaded successfully.'); // Avoid logging the key itself!
+  console.log('Perplexity API Key Status: Loaded successfully.');
 }
-// --- End Environment Variable Check ---
 
-
-// Create an instance of the Express application
 const app = express();
-
-// --- Middleware ---
 app.use(cors());
 app.use(express.json());
-
-// Define the port number the server will listen on
 const port = 3001;
 
-// --- Mock Data ---
+// --- Mock Grant Data (Keep for /api/grants endpoint) ---
 const mockGrants = [
   { id: 1, title: 'Cancer Research Initiative', agency: 'NIH', amount: 500000, keyword: 'cancer' },
   { id: 2, title: 'Neuroscience Fellowship', agency: 'NSF', amount: 150000, keyword: 'neuroscience' },
@@ -42,12 +27,10 @@ const mockGrants = [
 
 // --- API Endpoints ---
 
-// Root endpoint
 app.get('/', (req, res) => {
   res.send('Hello from the BioBeacon Backend!');
 });
 
-// GET endpoint for mock grant data
 app.get('/api/grants', (req, res) => {
   const keyword = req.query.keyword;
   console.log(`Received GET request for grants with keyword: ${keyword}`);
@@ -67,9 +50,10 @@ app.get('/api/grants', (req, res) => {
   res.json(results);
 });
 
-// POST endpoint to receive researcher data and simulate Perplexity call
+// POST endpoint - Now attempts real API call
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
+  let actualProfile = null; // Variable to hold profile from API
 
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
@@ -79,31 +63,71 @@ app.post('/api/process-researcher', async (req, res) => {
     return res.status(400).json({ error: 'Missing name or affiliation in request body' });
   }
 
-  // Log the status of the API key for this request (for debugging deployed app)
+  console.log('Attempting Perplexity API call...');
   console.log('Perplexity API Key Status (in request):', perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder');
 
-  // --- Simulate Perplexity API Call (KEEPING for now) ---
-  console.log('Simulating Perplexity API call...');
-  await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
-  const mockProfile = `Generated profile for ${name} from ${affiliation}. Areas of expertise include advanced research methods, grant writing, and scientific collaboration. Currently focusing on topics relevant to ${affiliation}. (Using API Key Status: ${perplexityApiKey ? 'Loaded' : 'Not Set'})`;
-  console.log('Simulated profile generated.');
-  // --- End Simulation ---
+  // --- Attempt Perplexity API Call ---
+  try {
+    // --- IMPORTANT: Replace with ACTUAL Perplexity API details ---
+    const perplexityApiUrl = 'https://api.perplexity.ai/some/endpoint'; // <-- Replace with real URL
+    const requestData = { // <-- Adjust payload based on API docs
+      query: `Generate a concise researcher profile for ${name} affiliated with ${affiliation}.`,
+      model: "sonar-medium-online" // Example: Specify a model if required
+    };
+    const headers = { // <-- Adjust headers based on API docs
+      'Authorization': `Bearer ${perplexityApiKey}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    // --- End of details to replace ---
+
+    // Make the actual API call using axios
+    const response = await axios.post(perplexityApiUrl, requestData, { headers });
+
+    console.log('Perplexity API Response Status:', response.status);
+    console.log('Perplexity API Response Data:', response.data); // Log raw response for debugging
+
+    // --- IMPORTANT: Extract profile based on ACTUAL API response structure ---
+    // This is a GUESS - adjust based on Perplexity's response format
+    actualProfile = response.data?.choices?.[0]?.message?.content || response.data?.profile || JSON.stringify(response.data);
+    console.log('Extracted Profile:', actualProfile);
+    // --- End of extraction logic ---
+
+  } catch (error) {
+    // Log detailed error information
+    console.error('Error calling Perplexity API:');
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('  Status:', error.response.status);
+      console.error('  Headers:', error.response.headers);
+      console.error('  Data:', error.response.data);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('  Request:', error.request);
+      console.error('  Error: No response received from Perplexity API.');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('  Error Message:', error.message);
+    }
+    // Send an error response back to the client
+    return res.status(500).json({
+        error: "Failed to call Perplexity API",
+        details: error.response ? error.response.data : error.message // Provide details if possible
+    });
+  }
+  // --- End API Call Attempt ---
 
 
-  // --- Placeholder for actual API call (Next Step) ---
-  // try {
-  //   const response = await axios.post('PERPLEXITY_API_ENDPOINT', { query: `Profile for ${name}, ${affiliation}` }, { headers: { 'Authorization': `Bearer ${perplexityApiKey}` } });
-  //   actualProfile = response.data.profile; // Adjust based on actual API response structure
-  // } catch (error) {
-  //   console.error("Error calling Perplexity API:", error);
-  //   return res.status(500).json({ error: "Failed to call Perplexity API" });
-  // }
-
+  // --- Placeholder for future logic ---
+  // TODO: Call ChatGPT API with actualProfile to get keywords
+  // TODO: Call Grants.gov API with keywords
 
   res.json({
-    message: "Received researcher data and simulated profile generation.",
+    message: "Processing request complete (API call attempted).", // Updated message
     received: { name, affiliation },
-    mockProfile: mockProfile, // Still sending mock profile
+    profile: actualProfile, // Send back the profile received (or null if error occurred before this)
+    // Keep mock keywords for now, replace later
     mockKeywords: ["grant", "research", name.toLowerCase().split(' ')[0], affiliation.toLowerCase().split(' ')[0]]
   });
 });
@@ -112,7 +136,6 @@ app.post('/api/process-researcher', async (req, res) => {
 // --- Start Server ---
 app.listen(port, () => {
   console.log(`BioBeacon backend server listening at http://localhost:${port}`);
-  // Log API key status on startup as well
   console.log(`Perplexity API Key Status on startup: ${perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
   console.log('Available endpoints:');
   console.log(`  GET /`);
