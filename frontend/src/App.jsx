@@ -4,35 +4,83 @@ import viteLogo from '/vite.svg';
 import './App.css';
 
 function App() {
-  // State variable to store the message fetched from the backend
-  // Initialize with a loading message
-  const [message, setMessage] = useState('Loading message from backend...');
+  // State for loading status
+  const [isLoading, setIsLoading] = useState(true);
+  // State to store the array of grants fetched from the backend
+  const [grants, setGrants] = useState([]);
+  // State for any potential error messages
+  const [error, setError] = useState(null);
 
   // Backend API URL (from AWS App Runner)
   const backendUrl = 'https://jmpzukpkcs.us-east-2.awsapprunner.com';
+  // Define a sample keyword for testing
+  const searchKeyword = 'biology'; // Try changing this later (e.g., 'health', 'cancer')
 
   // useEffect hook to fetch data when the component mounts
   useEffect(() => {
-    // Use the fetch API to make a GET request to the backend root URL
-    fetch(backendUrl + '/') // Append '/' just to be explicit we're hitting the root
+    setIsLoading(true); // Start loading
+    setError(null); // Clear previous errors
+
+    // Construct the URL with the query parameter
+    const apiUrl = `${backendUrl}/api/grants?keyword=${searchKeyword}`;
+
+    // Use the fetch API to make a GET request to the backend grants endpoint
+    fetch(apiUrl)
       .then(response => {
-        // Check if the request was successful (status code 200-299)
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          // If response is not ok, try to parse error message from backend if available
+          return response.json().then(errData => {
+            throw new Error(errData.message || `HTTP error! status: ${response.status}`);
+          }).catch(() => {
+             // Fallback if error response is not JSON or has no message
+             throw new Error(`HTTP error! status: ${response.status}`);
+          });
         }
-        // Parse the response body as text
-        return response.text();
+        // Parse the response body as JSON (since the API now returns JSON)
+        return response.json();
       })
       .then(data => {
-        // Update the message state with the data recclseived from the backend
-        setMessage(data);
+        // Check if the backend sent a message (e.g., "No grants found...")
+        if (data.message) {
+           setError(data.message); // Set error state to display the message
+           setGrants([]); // Ensure grants list is empty
+        } else {
+          // Update the grants state with the array received from the backend
+          setGrants(data);
+        }
+        setIsLoading(false); // Stop loading
       })
       .catch(error => {
         // Handle any errors during the fetch operation
         console.error('Error fetching data:', error);
-        setMessage('Failed to fetch message from backend.');
+        setError(`Failed to fetch grants: ${error.message}`);
+        setGrants([]); // Ensure grants list is empty on error
+        setIsLoading(false); // Stop loading
       });
   }, []); // The empty dependency array [] means this effect runs only once when the component mounts
+
+  // Helper function to render the list of grants
+  const renderGrants = () => {
+    if (isLoading) {
+      return <p>Loading grants...</p>;
+    }
+    if (error) {
+      return <p style={{ color: 'orange' }}>{error}</p>; // Display error message
+    }
+    if (grants.length === 0) {
+      return <p>No grants found for keyword "{searchKeyword}".</p>;
+    }
+
+    return (
+      <ul>
+        {grants.map(grant => (
+          <li key={grant.id}>
+            <strong>{grant.title}</strong> ({grant.agency}) - ${grant.amount.toLocaleString()}
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   // Render the component
   return (
@@ -45,15 +93,13 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      <h1>Vite + React</h1>
+      <h1>BioBeacon Grant Finder</h1>
       <div className="card">
-        {/* Display the message from the backend (or loading/error state) */}
-        <p>
-          Backend says: <strong>{message}</strong>
-        </p>
+        <h2>Grant Results for "{searchKeyword}"</h2>
+        {renderGrants()} {/* Call helper function to display results */}
       </div>
       <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
+        (Mock data shown - API integration in progress)
       </p>
     </>
   );
