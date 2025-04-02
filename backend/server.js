@@ -9,11 +9,8 @@ const cors = require('cors');
 const app = express();
 
 // --- Middleware ---
-// Enable CORS for all origins
 app.use(cors());
-// Enable parsing of JSON request bodies
-// This MUST come before routes that need to handle JSON POST/PUT data
-app.use(express.json()); // Added this line
+app.use(express.json());
 
 // Define the port number the server will listen on
 const port = 3001;
@@ -53,36 +50,44 @@ app.get('/api/grants', (req, res) => {
   res.json(results);
 });
 
-// POST endpoint to receive researcher data
-app.post('/api/process-researcher', (req, res) => {
-  // Extract name and affiliation from the JSON request body
-  // This requires the express.json() middleware to be used
+// POST endpoint to receive researcher data and simulate Perplexity call
+// Make the handler async to allow for await
+app.post('/api/process-researcher', async (req, res) => { // Added async
   const { name, affiliation } = req.body;
 
-  // Log received data (visible in server console / App Runner logs)
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
   console.log('  Affiliation:', affiliation);
 
-  // Basic validation (example)
   if (!name || !affiliation) {
     return res.status(400).json({ error: 'Missing name or affiliation in request body' });
   }
 
+  // --- Simulate Perplexity API Call ---
+  console.log('Simulating Perplexity API call...');
+  // Add an artificial delay to mimic network latency
+  await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
+
+  // Generate a mock profile based on input
+  const mockProfile = `Generated profile for ${name} from ${affiliation}. Areas of expertise include advanced research methods, grant writing, and scientific collaboration. Currently focusing on topics relevant to ${affiliation}.`;
+  console.log('Simulated profile generated.');
+  // --- End Simulation ---
+
+
   // --- Placeholder for future logic ---
-  // TODO: Call Perplexity API with name/affiliation
+  // TODO: Replace simulation with actual Perplexity API call
   // TODO: Call ChatGPT API with profile to get keywords
   // TODO: Call Grants.gov API with keywords
-  // For now, just send back a confirmation and mock keywords
+  // For now, send back confirmation, received data, mock profile, and mock keywords
 
   res.json({
-    message: "Received researcher data successfully.",
+    message: "Received researcher data and simulated profile generation.", // Updated message
     received: {
       name: name,
       affiliation: affiliation
     },
-    // Placeholder for keywords that would eventually be generated
-    mockKeywords: ["grant", "research", name.toLowerCase().split(' ')[0], affiliation.toLowerCase().split(' ')[0]]
+    mockProfile: mockProfile, // Added mock profile to response
+    mockKeywords: ["grant", "research", name.toLowerCase().split(' ')[0], affiliation.toLowerCase().split(' ')[0]] // Kept mock keywords for now
   });
 });
 
@@ -93,5 +98,5 @@ app.listen(port, () => {
   console.log('Available endpoints:');
   console.log(`  GET /`);
   console.log(`  GET /api/grants?keyword=...`);
-  console.log(`  POST /api/process-researcher (expects JSON body: {"name": "...", "affiliation": "..."})`); // Added info here
+  console.log(`  POST /api/process-researcher (expects JSON body: {"name": "...", "affiliation": "..."})`);
 });
