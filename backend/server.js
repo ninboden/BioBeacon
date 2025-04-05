@@ -1,18 +1,35 @@
-// server.js - Backend making real Perplexity call & simulating ChatGPT call
+// server.js - Backend prepared for OpenAI calls
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const OpenAI = require('openai'); // Added OpenAI library
 
-// --- Environment Variable Setup ---
+// --- Environment Variable Setup & Client Initialization ---
 const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
+const openaiApiKey = process.env.OPENAI_API_KEY; // Added OpenAI Key
+
+// Perplexity Key Check
 if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
-  console.warn('WARNING: PERPLEXITY_API_KEY environment variable not set or using placeholder. Real API calls will fail.');
+  console.warn('WARNING: PERPLEXITY_API_KEY environment variable not set or using placeholder.');
 } else {
   console.log('Perplexity API Key Status: Loaded successfully.');
 }
+
+// OpenAI Key Check & Client Initialization
+let openai; // Declare openai client variable
+if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') {
+  console.warn('WARNING: OPENAI_API_KEY environment variable not set or using placeholder. Real OpenAI calls will fail.');
+  // Optionally initialize with a dummy key or handle differently if needed
+  // openai = new OpenAI({ apiKey: 'DUMMY_KEY_FOR_INITIALIZATION' }); // Example if constructor requires key
+} else {
+  console.log('OpenAI API Key Status: Loaded successfully.');
+  // Initialize OpenAI client only if key is valid
+  openai = new OpenAI({ apiKey: openaiApiKey });
+}
 // --- End Environment Variable Setup ---
+
 
 const app = express();
 app.use(cors());
@@ -58,7 +75,7 @@ app.get('/api/grants', (req, res) => {
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
   let actualProfile = null;
-  let simulatedKeywords = []; // Renamed from mockKeywords
+  let simulatedKeywords = []; // Keep simulation for now
 
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
@@ -68,61 +85,52 @@ app.post('/api/process-researcher', async (req, res) => {
     return res.status(400).json({ error: 'Missing name or affiliation in request body' });
   }
 
+  // Check Perplexity Key before proceeding
   if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
       console.error("Perplexity API Key is not configured correctly.");
-      return res.status(500).json({ error: "Server configuration error: Missing API Key" });
+      return res.status(500).json({ error: "Server configuration error: Missing Perplexity API Key" });
   }
 
   console.log('Attempting real Perplexity API call...');
-
   // --- Perplexity API Call ---
   try {
     const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
     const requestData = {
-      model: "sonar", // Or the model you prefer like sonar-deep-research
+      model: "sonar", // Or sonar-deep-research etc.
       messages: [
         { role: "system", content: "Generate a concise, professional researcher profile suitable for finding grant keywords. Focus on likely research areas based on name and affiliation." },
         { role: "user", content: `Generate profile for ${name}, affiliated with ${affiliation}.` }
       ]
     };
-    const headers = {
-      'Authorization': `Bearer ${perplexityApiKey}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
-
+    const headers = { 'Authorization': `Bearer ${perplexityApiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
     const response = await axios.post(perplexityApiUrl, requestData, { headers });
     console.log('Perplexity API call successful.');
 
-    if (response.data && response.data.choices && response.data.choices.length > 0 && response.data.choices[0].message) {
+    if (response.data?.choices?.[0]?.message?.content) {
        actualProfile = response.data.choices[0].message.content;
        console.log('Successfully extracted profile from Perplexity.');
     } else {
        console.warn('Could not find profile in expected Perplexity response location.');
-       actualProfile = JSON.stringify(response.data); // Fallback
+       actualProfile = JSON.stringify(response.data);
     }
-
   } catch (error) {
     console.error('Error calling Perplexity API:');
-    // ... (error logging remains the same)
-    if (error.response) {
-      console.error('  Status:', error.response.status);
-      console.error('  Data:', error.response.data);
-    } else if (error.request) { console.error('  Error: No response received.'); }
+    // ... (error logging) ...
+    if (error.response) { console.error('  Status:', error.response.status); console.error('  Data:', error.response.data); }
+    else if (error.request) { console.error('  Error: No response received.'); }
     else { console.error('  Error Message:', error.message); }
     return res.status(500).json({ error: "Failed to call Perplexity API", details: error.response ? error.response.data : error.message });
   }
   // --- End Perplexity API Call ---
 
 
-  // --- Simulate ChatGPT API Call (using the profile obtained above) ---
-  if (actualProfile) { // Only simulate if we got a profile
+  // --- Simulate ChatGPT API Call (KEEPING simulation for now) ---
+  if (actualProfile) {
       console.log('Simulating ChatGPT API call with received profile...');
+      // Log OpenAI client status for debugging
+      console.log('OpenAI Client Status:', openai ? 'Initialized' : 'Not Initialized (Check API Key)');
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-
-      // Generate mock keywords (replace with real ChatGPT call later)
-      // Could do basic text processing on actualProfile here for more realistic mocks
-      simulatedKeywords = ["simulated", "keywords", "based", "on", name.toLowerCase().split(' ')[0]];
+      simulatedKeywords = ["simulated", "keywords", "using", name.toLowerCase().split(' ')[0]]; // Slightly different mock keywords
       console.log('Simulated keywords generated:', simulatedKeywords);
   } else {
       console.log('Skipping ChatGPT simulation because profile was not obtained.');
@@ -134,19 +142,19 @@ app.post('/api/process-researcher', async (req, res) => {
   // TODO: Call Grants.gov API with keywords
 
   res.json({
-    message: "Successfully processed researcher, called Perplexity, and simulated ChatGPT.", // Updated message
+    message: "Successfully processed researcher, called Perplexity, and simulated ChatGPT.",
     received: { name, affiliation },
-    profile: actualProfile, // Send back the actual profile
-    simulatedKeywords: simulatedKeywords // Send back simulated keywords
+    profile: actualProfile,
+    simulatedKeywords: simulatedKeywords // Still sending simulated keywords
   });
 });
 
 
 // --- Start Server ---
 app.listen(port, () => {
-  // ... (startup logs remain the same)
   console.log(`BioBeacon backend server listening at http://localhost:${port}`);
   console.log(`Perplexity API Key Status on startup: ${perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
+  console.log(`OpenAI API Key Status on startup: ${openaiApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`); // Added OpenAI key status
   console.log('Available endpoints:');
   console.log(`  GET /`);
   console.log(`  GET /api/grants?keyword=...`);
