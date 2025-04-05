@@ -1,14 +1,17 @@
-import React from 'react'; // Import React (optional in newer versions, but good practice)
+import React from 'react';
 
 // Receive isLoading, error, and processedData as props from App
 function ResultsDisplay({ isLoading, error, processedData }) {
 
-  // Render loading state
+  // Render loading state with a spinner
   if (isLoading) {
     return (
       <section className="results-section card">
         <h2>Results</h2>
-        <p className="loading-message">Processing... Please wait.</p>
+        <div className="loading-indicator">
+          <div className="spinner"></div> {/* Added spinner div */}
+          <p className="loading-message">Processing... Please wait.</p>
+        </div>
       </section>
     );
   }
@@ -18,6 +21,7 @@ function ResultsDisplay({ isLoading, error, processedData }) {
     return (
       <section className="results-section card">
         <h2>Results</h2>
+        {/* Ensure error message uses the dedicated class */}
         <p className="error-message">Error: {error}</p>
       </section>
     );
@@ -50,6 +54,7 @@ function ResultsDisplay({ isLoading, error, processedData }) {
           </div>
 
           <div className="grants-section">
+            {/* Display count clearly */}
             <h3>Potential Grant Results ({processedData.grantResults?.length || 0} found):</h3>
             {processedData.grantResults?.length > 0 ? (
               <ul className="grants-list">
@@ -65,7 +70,10 @@ function ResultsDisplay({ isLoading, error, processedData }) {
                 ))}
               </ul>
             ) : (
-              <p>No matching grants found from Grants.gov based on extracted keywords.</p>
+              // More specific message when keywords were found but no grants matched
+              processedData.actualKeywords?.length > 0 && !processedData.actualKeywords[0].includes('_') ?
+              <p>No matching grants found from Grants.gov for the extracted keywords.</p> :
+              <p>No grant search performed or no results available.</p> // Fallback
             )}
           </div>
         </div>
@@ -73,7 +81,7 @@ function ResultsDisplay({ isLoading, error, processedData }) {
     );
   }
 
-  // Initial state or if no data yet after submission (shouldn't usually happen with current flow)
+  // Initial state message
   return (
      <section className="results-section card">
         <h2>Results</h2>
