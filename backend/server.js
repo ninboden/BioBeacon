@@ -1,4 +1,4 @@
-// server.js - Backend: Perplexity call -> OpenAI call -> Grants.gov Simulation
+// server.js - Backend: Perplexity -> OpenAI -> Grants.gov API calls
 
 require('dotenv').config();
 const express = require('express');
@@ -11,12 +11,12 @@ const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 
 // Perplexity Key Check
-// ... (key check logic remains the same)
+// ... (key check logic) ...
 if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') { console.warn('WARNING: PERPLEXITY_API_KEY not set or using placeholder.'); }
 else { console.log('Perplexity API Key Status: Loaded successfully.'); }
 
 // OpenAI Key Check & Client Initialization
-// ... (key check and client init logic remains the same)
+// ... (key check and client init logic) ...
 let openai;
 let isOpenAIInitialized = false;
 if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') { console.warn('WARNING: OPENAI_API_KEY not set or using placeholder.'); }
@@ -28,13 +28,13 @@ app.use(cors());
 app.use(express.json());
 const port = 3001;
 
-// --- Mock Grant Data (Used by /api/grants and Grants.gov simulation) ---
+// --- Mock Grant Data (Only used by direct /api/grants endpoint now) ---
 const mockGrants = [
   { id: 1, title: 'Cancer Research Initiative', agency: 'NIH', amount: 500000, keyword: 'cancer' },
   { id: 2, title: 'Neuroscience Fellowship', agency: 'NSF', amount: 150000, keyword: 'neuroscience' },
   { id: 3, title: 'Public Health Study Grant', agency: 'CDC', amount: 300000, keyword: 'health' },
   { id: 4, title: 'Plant Biology Research Grant', agency: 'NSF', amount: 250000, keyword: 'biology' },
-  { id: 5, title: 'AI in Medicine Grant', agency: 'NIH', amount: 400000, keyword: 'ai' }, // Added more grants
+  { id: 5, title: 'AI in Medicine Grant', agency: 'NIH', amount: 400000, keyword: 'ai' },
   { id: 6, title: 'Computational Biology Tools', agency: 'NSF', amount: 200000, keyword: 'computational biology' },
 ];
 
@@ -44,9 +44,8 @@ app.get('/', (req, res) => {
   res.send('Hello from the BioBeacon Backend!');
 });
 
-// GET endpoint for mock grant data (can be used independently if needed)
+// GET endpoint for mock grant data (kept for potential direct use/testing)
 app.get('/api/grants', (req, res) => {
-  // ... (GET /api/grants endpoint remains the same)
   const keyword = req.query.keyword;
   console.log(`Received GET request for grants with keyword: ${keyword}`);
   let results = [];
@@ -60,18 +59,17 @@ app.get('/api/grants', (req, res) => {
          return res.json({ message: `No grants found matching keyword: ${keyword}` });
     }
   } else {
-    // Return all mock grants if no keyword specified for this endpoint
-    results = mockGrants;
+    results = mockGrants; // Return all if no keyword
   }
   res.json(results);
 });
 
-// POST endpoint - Full workflow: Perplexity call -> OpenAI call -> Grants.gov Simulation
+// POST endpoint - Full workflow: Perplexity -> OpenAI -> Grants.gov
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
   let actualProfile = null;
   let actualKeywords = [];
-  let grantResults = []; // Store results from Grants.gov simulation
+  let grantResults = []; // Store results from Grants.gov call
 
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
@@ -111,43 +109,62 @@ app.post('/api/process-researcher', async (req, res) => {
   // --- End OpenAI API Call ---
 
 
-  // --- Simulate Grants.gov API Call (using actualKeywords) ---
+  // --- Grants.gov API Call (using actualKeywords) ---
   if (actualKeywords.length > 0 && !actualKeywords[0].includes('_failed') && !actualKeywords[0].includes('_not_initialized')) {
-      console.log(`Simulating Grants.gov API call with keywords: ${actualKeywords.join(', ')}`);
-      await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 seconds
+      console.log(`Attempting Grants.gov API call with keywords: ${actualKeywords.join(' ')}`);
+      try {
+          const grantsApiUrl = 'https://api.grants.gov/v1/api/search2';
+          // Join keywords with space for the search query (adjust if API prefers OR, AND, etc.)
+          const keywordString = actualKeywords.join(' ');
+          const requestData = {
+              keyword: keywordString,
+              rows: 15, // Request up to 15 results
+              oppStatuses: "forecasted|posted" // Look for current opportunities
+              // Add other filters like 'agencies' if needed later
+          };
+          const headers = { 'Content-Type': 'application/json' };
 
-      // Filter mockGrants based on actualKeywords extracted from OpenAI
-      grantResults = mockGrants.filter(grant =>
-          actualKeywords.some(kw => grant.keyword.toLowerCase().includes(kw)) ||
-          actualKeywords.some(kw => grant.title.toLowerCase().includes(kw))
-      );
-      console.log(`Simulated grant results generated: Found ${grantResults.length} grants.`);
+          const response = await axios.post(grantsApiUrl, requestData, { headers });
 
+          console.log('Grants.gov API call successful. Status:', response.status);
+          // Extract results from the 'oppHits' array within the 'data' object
+          grantResults = response.data?.data?.oppHits || [];
+          console.log(`Found ${grantResults.length} grant results from Grants.gov.`);
+
+      } catch (error) {
+          console.error('Error calling Grants.gov API:');
+          if (error.response) { console.error('  Status:', error.response.status); console.error('  Data:', error.response.data); }
+          else if (error.request) { console.error('  Error: No response received.'); }
+          else { console.error('  Error Message:', error.message); }
+          // Don't stop execution, just return empty results for this step
+          grantResults = []; // Set empty results on error
+          // Optionally add an error indicator to the main response?
+      }
   } else {
-      console.log('Skipping Grants.gov simulation because no valid keywords were obtained.');
+      console.log('Skipping Grants.gov call because no valid keywords were obtained.');
   }
-  // --- End Grants.gov Simulation ---
+  // --- End Grants.gov API Call ---
 
 
   // --- Final Response ---
   res.json({
-    message: "Successfully processed researcher, called Perplexity, called OpenAI, and simulated Grants.gov.", // Updated message
+    message: "Successfully processed researcher: Perplexity -> OpenAI -> Grants.gov.", // Updated message
     received: { name, affiliation },
     profile: actualProfile,
     actualKeywords: actualKeywords,
-    grantResults: grantResults // Added simulated grant results
+    grantResults: grantResults // Send back actual grant results
   });
 });
 
 
 // --- Start Server ---
 app.listen(port, () => {
-  // ... (startup logs remain the same) ...
+  // ... (startup logs) ...
   console.log(`BioBeacon backend server listening at http://localhost:${port}`);
   console.log(`Perplexity API Key Status on startup: ${perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
   console.log(`OpenAI API Key Status on startup: ${openaiApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
   console.log('Available endpoints:');
   console.log(`  GET /`);
-  console.log(`  GET /api/grants?keyword=...`);
+  console.log(`  GET /api/grants?keyword=...`); // Kept this endpoint
   console.log(`  POST /api/process-researcher (expects JSON body: {"name": "...", "affiliation": "..."})`);
 });
