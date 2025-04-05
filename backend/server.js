@@ -1,4 +1,4 @@
-// server.js - Backend making real Perplexity & OpenAI calls
+// server.js - Backend: Perplexity call -> OpenAI call -> Grants.gov Simulation
 
 require('dotenv').config();
 const express = require('express');
@@ -11,26 +11,16 @@ const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 
 // Perplexity Key Check
-if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
-  console.warn('WARNING: PERPLEXITY_API_KEY environment variable not set or using placeholder.');
-} else {
-  console.log('Perplexity API Key Status: Loaded successfully.');
-}
+// ... (key check logic remains the same)
+if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') { console.warn('WARNING: PERPLEXITY_API_KEY not set or using placeholder.'); }
+else { console.log('Perplexity API Key Status: Loaded successfully.'); }
 
 // OpenAI Key Check & Client Initialization
+// ... (key check and client init logic remains the same)
 let openai;
 let isOpenAIInitialized = false;
-if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') {
-  console.warn('WARNING: OPENAI_API_KEY environment variable not set or using placeholder. Real OpenAI calls will fail.');
-} else {
-  try {
-    openai = new OpenAI({ apiKey: openaiApiKey });
-    isOpenAIInitialized = true;
-    console.log('OpenAI API Key Status: Loaded successfully & client initialized.');
-  } catch (error) {
-      console.error("Error initializing OpenAI client:", error.message);
-  }
-}
+if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') { console.warn('WARNING: OPENAI_API_KEY not set or using placeholder.'); }
+else { try { openai = new OpenAI({ apiKey: openaiApiKey }); isOpenAIInitialized = true; console.log('OpenAI API Key Status: Loaded successfully & client initialized.'); } catch (error) { console.error("Error initializing OpenAI client:", error.message); } }
 // --- End Environment Variable Setup ---
 
 const app = express();
@@ -38,13 +28,14 @@ app.use(cors());
 app.use(express.json());
 const port = 3001;
 
-// --- Mock Grant Data ---
+// --- Mock Grant Data (Used by /api/grants and Grants.gov simulation) ---
 const mockGrants = [
-  // ... (mock grant data remains the same)
   { id: 1, title: 'Cancer Research Initiative', agency: 'NIH', amount: 500000, keyword: 'cancer' },
   { id: 2, title: 'Neuroscience Fellowship', agency: 'NSF', amount: 150000, keyword: 'neuroscience' },
   { id: 3, title: 'Public Health Study Grant', agency: 'CDC', amount: 300000, keyword: 'health' },
   { id: 4, title: 'Plant Biology Research Grant', agency: 'NSF', amount: 250000, keyword: 'biology' },
+  { id: 5, title: 'AI in Medicine Grant', agency: 'NIH', amount: 400000, keyword: 'ai' }, // Added more grants
+  { id: 6, title: 'Computational Biology Tools', agency: 'NSF', amount: 200000, keyword: 'computational biology' },
 ];
 
 // --- API Endpoints ---
@@ -53,6 +44,7 @@ app.get('/', (req, res) => {
   res.send('Hello from the BioBeacon Backend!');
 });
 
+// GET endpoint for mock grant data (can be used independently if needed)
 app.get('/api/grants', (req, res) => {
   // ... (GET /api/grants endpoint remains the same)
   const keyword = req.query.keyword;
@@ -68,115 +60,89 @@ app.get('/api/grants', (req, res) => {
          return res.json({ message: `No grants found matching keyword: ${keyword}` });
     }
   } else {
-    results = [];
+    // Return all mock grants if no keyword specified for this endpoint
+    results = mockGrants;
   }
   res.json(results);
 });
 
-// POST endpoint - Calls Perplexity, then calls OpenAI
+// POST endpoint - Full workflow: Perplexity call -> OpenAI call -> Grants.gov Simulation
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
   let actualProfile = null;
-  let actualKeywords = []; // Store keywords from OpenAI
+  let actualKeywords = [];
+  let grantResults = []; // Store results from Grants.gov simulation
 
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
   console.log('  Affiliation:', affiliation);
 
-  if (!name || !affiliation) {
-    return res.status(400).json({ error: 'Missing name or affiliation in request body' });
-  }
+  if (!name || !affiliation) { return res.status(400).json({ error: 'Missing name or affiliation' }); }
+  if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') { return res.status(500).json({ error: "Server config error: Missing Perplexity API Key" }); }
 
   // --- Perplexity API Call ---
-  if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
-      console.error("Perplexity API Key is not configured correctly.");
-      return res.status(500).json({ error: "Server configuration error: Missing Perplexity API Key" });
-  }
-  console.log('Attempting real Perplexity API call...');
+  console.log('Attempting Perplexity API call...');
   try {
+    // ... (Perplexity axios call remains the same) ...
     const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
-    const requestData = { model: "sonar", messages: [ { role: "system", content: "Generate a concise, professional researcher profile suitable for finding grant keywords. Focus on likely research areas based on name and affiliation." }, { role: "user", content: `Generate profile for ${name}, affiliated with ${affiliation}.` } ] };
+    const requestData = { model: "sonar", messages: [ { role: "system", content: "Generate a concise, professional researcher profile..." }, { role: "user", content: `Generate profile for ${name}, affiliated with ${affiliation}.` } ] };
     const headers = { 'Authorization': `Bearer ${perplexityApiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
     const response = await axios.post(perplexityApiUrl, requestData, { headers });
     console.log('Perplexity API call successful.');
-    if (response.data?.choices?.[0]?.message?.content) {
-       actualProfile = response.data.choices[0].message.content;
-       console.log('Successfully extracted profile from Perplexity.');
-    } else { console.warn('Could not find profile in expected Perplexity response location.'); actualProfile = JSON.stringify(response.data); }
-  } catch (error) {
-    console.error('Error calling Perplexity API:');
-    // ... (error logging) ...
-    if (error.response) { console.error('  Status:', error.response.status); console.error('  Data:', error.response.data); } else if (error.request) { console.error('  Error: No response received.'); } else { console.error('  Error Message:', error.message); }
-    return res.status(500).json({ error: "Failed to call Perplexity API", details: error.response ? error.response.data : error.message });
-  }
+    if (response.data?.choices?.[0]?.message?.content) { actualProfile = response.data.choices[0].message.content; console.log('Extracted profile from Perplexity.'); }
+    else { console.warn('Could not find profile in Perplexity response.'); actualProfile = JSON.stringify(response.data); }
+  } catch (error) { console.error('Error calling Perplexity API:', error.message); return res.status(500).json({ error: "Failed to call Perplexity API", details: error.response ? error.response.data : error.message }); }
   // --- End Perplexity API Call ---
 
 
   // --- OpenAI API Call for Keywords ---
-  if (isOpenAIInitialized && actualProfile) { // Check if client is ready and we have a profile
-    console.log('Attempting real OpenAI API call for keywords...');
+  if (isOpenAIInitialized && actualProfile) {
+    console.log('Attempting OpenAI API call for keywords...');
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // Or a different model like gpt-4
-        messages: [
-          { role: "system", content: "You are an expert in academic research funding. Extract 5-10 relevant keywords suitable for searching grant databases (like Grants.gov) from the provided researcher profile. Return only a comma-separated list of keywords." },
-          { role: "user", content: actualProfile }
-        ],
-        temperature: 0.5, // Adjust creativity
-        max_tokens: 50, // Limit token usage for keywords
-      });
-
+      // ... (OpenAI call remains the same) ...
+      const completion = await openai.chat.completions.create({ model: "gpt-3.5-turbo", messages: [ { role: "system", content: "Extract 5-10 relevant keywords suitable for searching grant databases... Return only a comma-separated list." }, { role: "user", content: actualProfile } ], temperature: 0.5, max_tokens: 50 });
       console.log('OpenAI API call successful.');
-      // console.log('OpenAI Response Data:', JSON.stringify(completion, null, 2)); // Log raw response
-
-      // Extract keywords from the response content
       const keywordString = completion.choices?.[0]?.message?.content;
-      if (keywordString) {
-        // Simple parsing: split by comma or newline, trim whitespace, filter empty
-        actualKeywords = keywordString.split(/,|\n/).map(kw => kw.trim()).filter(kw => kw.length > 0);
-        console.log('Successfully extracted keywords from OpenAI:', actualKeywords);
-      } else {
-        console.warn('Could not find keywords in expected OpenAI response location.');
-        actualKeywords = ['parsing_failed']; // Indicate parsing issue
-      }
-
-    } catch (error) {
-      console.error('Error calling OpenAI API:');
-      if (error instanceof OpenAI.APIError) {
-        console.error('  Status:', error.status);
-        console.error('  Message:', error.message);
-        console.error('  Code:', error.code);
-        console.error('  Type:', error.type);
-      } else {
-        console.error('  Error Message:', error.message);
-      }
-      // Don't stop execution, just note the failure; maybe keep mock keywords?
-      actualKeywords = ['openai_call_failed']; // Indicate call failure
-    }
-  } else if (!actualProfile) {
-      console.log('Skipping OpenAI call because profile was not obtained from Perplexity.');
-  } else { // !isOpenAIInitialized
-      console.log('Skipping OpenAI call because OpenAI client is not initialized (check API Key).');
-      actualKeywords = ['openai_not_initialized'];
-  }
+      if (keywordString) { actualKeywords = keywordString.split(/,|\n/).map(kw => kw.trim().toLowerCase()).filter(kw => kw.length > 0); console.log('Extracted keywords from OpenAI:', actualKeywords); }
+      else { console.warn('Could not find keywords in OpenAI response.'); actualKeywords = ['parsing_failed']; }
+    } catch (error) { console.error('Error calling OpenAI API:', error.message); actualKeywords = ['openai_call_failed']; }
+  } else if (!actualProfile) { console.log('Skipping OpenAI call: profile missing.'); }
+  else { console.log('Skipping OpenAI call: client not initialized.'); actualKeywords = ['openai_not_initialized']; }
   // --- End OpenAI API Call ---
 
 
-  // --- Placeholder for Grants.gov call ---
-  // TODO: Call Grants.gov API with actualKeywords
+  // --- Simulate Grants.gov API Call (using actualKeywords) ---
+  if (actualKeywords.length > 0 && !actualKeywords[0].includes('_failed') && !actualKeywords[0].includes('_not_initialized')) {
+      console.log(`Simulating Grants.gov API call with keywords: ${actualKeywords.join(', ')}`);
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5 seconds
 
+      // Filter mockGrants based on actualKeywords extracted from OpenAI
+      grantResults = mockGrants.filter(grant =>
+          actualKeywords.some(kw => grant.keyword.toLowerCase().includes(kw)) ||
+          actualKeywords.some(kw => grant.title.toLowerCase().includes(kw))
+      );
+      console.log(`Simulated grant results generated: Found ${grantResults.length} grants.`);
+
+  } else {
+      console.log('Skipping Grants.gov simulation because no valid keywords were obtained.');
+  }
+  // --- End Grants.gov Simulation ---
+
+
+  // --- Final Response ---
   res.json({
-    message: "Successfully processed researcher, called Perplexity, and attempted OpenAI.", // Updated message
+    message: "Successfully processed researcher, called Perplexity, called OpenAI, and simulated Grants.gov.", // Updated message
     received: { name, affiliation },
     profile: actualProfile,
-    actualKeywords: actualKeywords // Send back actual keywords (or error indicators)
+    actualKeywords: actualKeywords,
+    grantResults: grantResults // Added simulated grant results
   });
 });
 
 
 // --- Start Server ---
 app.listen(port, () => {
-  // ... (startup logs) ...
+  // ... (startup logs remain the same) ...
   console.log(`BioBeacon backend server listening at http://localhost:${port}`);
   console.log(`Perplexity API Key Status on startup: ${perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
   console.log(`OpenAI API Key Status on startup: ${openaiApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
