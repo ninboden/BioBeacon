@@ -1,42 +1,217 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Reset basic styles */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f9fa; /* Light background for the page */
+  color: #333;
+  line-height: 1.6; /* Improve overall readability */
+}
+
+/* Main container for the app */
+.app-container {
+  max-width: 900px; /* Limit width for readability */
+  margin: 20px auto; /* Center the container with margin */
+  padding: 20px;
+}
+
+/* Simple header style */
+.app-header {
   text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #dee2e6;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.app-header h1 {
+  color: #007bff; /* A primary color */
+  margin: 0;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
+/* Card style for sections */
 .card {
-  padding: 2em;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px; /* Rounded corners */
+  padding: 25px; /* Increased padding */
+  margin-bottom: 25px; /* Increased margin */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.07); /* Slightly enhanced shadow */
 }
 
-.read-the-docs {
-  color: #888;
+/* Input section styling */
+.input-section h2, .results-section h2 {
+  margin-top: 0;
+  color: #495057;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 25px; /* Increased spacing */
+}
+
+.form-group {
+  margin-bottom: 18px; /* Increased spacing */
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px; /* Increased spacing */
+  font-weight: bold;
+  color: #495057;
+}
+
+.form-group input[type="text"] {
+  width: calc(100% - 20px); /* Full width minus increased padding */
+  padding: 10px; /* Increased padding */
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.submit-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 25px; /* Increased padding */
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 10px; /* Add some space above button */
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.submit-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Results section styling */
+.results-section .loading-message,
+.results-section .error-message {
+  font-style: italic;
+  color: #6c757d;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.results-section .error-message {
+  color: #dc3545; /* Red for errors */
+  font-weight: bold;
+  background-color: #f8d7da; /* Light red background for errors */
+  border: 1px solid #f5c6cb;
+}
+
+.result-content h3 {
+  color: #0056b3; /* Darker blue */
+  margin-top: 25px;
+  margin-bottom: 15px; /* Increased spacing */
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 8px; /* Increased spacing */
+}
+
+.result-content h4 {
+    font-weight: bold;
+    color: #28a745;
+    margin-bottom: 20px; /* Increased spacing */
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Style individual result sections */
+.profile-section, .keywords-section, .grants-section {
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 5px;
+}
+
+.profile-section {
+    background-color: #fdfdfd; /* Very light grey */
+    border: 1px solid #f0f0f0;
+}
+.keywords-section {
+    background-color: #f9f9f9; /* Slightly different light grey */
+     border: 1px solid #ededed;
+}
+.grants-section {
+     background-color: #f7f7f7;
+      border: 1px solid #e8e8e8;
+}
+
+
+.profile-section .profile-text {
+  background-color: #f0f4f8; /* Lighter blueish background */
+  border: 1px solid #dbe4ee;
+  padding: 15px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: Consolas, 'Courier New', monospace; /* Monospace font */
+  font-size: 0.9em; /* Slightly smaller */
+  line-height: 1.5;
+  max-height: 350px; /* Increased height */
+  overflow-y: auto;
+}
+
+.keywords-section .keywords-list {
+  font-style: normal; /* Remove italic */
+  color: #333;
+  background-color: #e9ecef; /* Light grey background for keywords */
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: inline-block; /* Make background fit content */
+}
+
+.grants-section .grants-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.grant-item {
+  border: 1px solid #d3d3d3; /* Slightly darker border */
+  background-color: #ffffff; /* White background for grant cards */
+  padding: 18px; /* Increased padding */
+  margin-bottom: 15px; /* Increased spacing */
+  border-radius: 6px; /* Slightly more rounded */
+  line-height: 1.6; /* Improve readability */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.grant-item:hover {
+    border-color: #007bff; /* Highlight border on hover */
+    box-shadow: 0 1px 3px rgba(0, 123, 255, 0.3);
+}
+
+
+.grant-item strong {
+  color: #0056b3; /* Darker blue for titles/labels */
+}
+
+.grant-item br {
+    display: block; /* Ensure <br> creates space */
+    content: ""; /* Required for margin on <br> */
+    margin-bottom: 6px; /* Add space after line breaks */
+}
+
+.grant-item small {
+    color: #5a6268; /* Slightly darker grey */
+    display: block;
+    margin-top: 8px; /* Increased spacing */
+    font-size: 0.85em;
+}
+
+
+/* Simple footer */
+.app-footer {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #dee2e6;
+  font-size: 0.9em;
+  color: #6c757d;
 }
