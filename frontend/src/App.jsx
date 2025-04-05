@@ -36,16 +36,13 @@ function App() {
       body: JSON.stringify(requestBody),
     })
       .then(response => {
-        // Try to parse JSON regardless of status code for potential error messages
         return response.json().then(data => ({ ok: response.ok, status: response.status, data }));
       })
       .then(({ ok, status, data }) => {
         console.log('Received response from backend:', { ok, status, data });
         if (!ok) {
-          // Throw an error with message from backend if available, else default HTTP error
           throw new Error(data.error || data.details || `HTTP error! status: ${status}`);
         }
-        // Success: Update state with the data received
         setProcessedData(data);
         setIsLoading(false);
       })
@@ -62,17 +59,14 @@ function App() {
       return <p>Processing... Please wait.</p>;
     }
     if (error) {
-      // Display backend error details if available
       return <p style={{ color: 'red' }}>Error: {error}</p>;
     }
     if (processedData) {
       return (
         <div>
-          {/* Display Confirmation Message */}
           <h4>{processedData.message || 'Processing Complete'}</h4>
           <hr />
 
-          {/* Display Profile */}
           <h3>Generated Profile:</h3>
           {processedData.profile ? (
             <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', background: '#f4f4f4', padding: '10px', borderRadius: '5px' }}>
@@ -83,29 +77,35 @@ function App() {
           )}
           <hr />
 
-          {/* Display Keywords */}
           <h3>Extracted Keywords:</h3>
-          {processedData.actualKeywords && processedData.actualKeywords.length > 0 && !processedData.actualKeywords[0].includes('_') ? ( // Check for keywords and avoid error indicators
+          {/* Using optional chaining (?.) for safety */}
+          {processedData.actualKeywords?.length > 0 && !processedData.actualKeywords[0].includes('_') ? (
             <p>{processedData.actualKeywords.join(', ')}</p>
           ) : (
             <p>No keywords extracted or keyword extraction failed.</p>
           )}
           <hr />
 
-          {/* Display Grant Results */}
-          <h3>Potential Grant Results (Simulated):</h3>
-          {processedData.grantResults && processedData.grantResults.length > 0 ? (
-            <ul>
+          {/* Display Grant Results - Using actual field names from Grants.gov */}
+          <h3>Potential Grant Results (from Grants.gov):</h3>
+          {/* Using optional chaining (?.) for safety */}
+          {processedData.grantResults?.length > 0 ? (
+            <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
               {processedData.grantResults.map(grant => (
-                <li key={grant.id}>
-                  <strong>{grant.title}</strong> ({grant.agency}) - ${grant.amount.toLocaleString()}
-                  <br />
-                  <small>Matched Keywords: {grant.keyword}</small>
+                // Use grant.id as key if available and unique, otherwise grant.number might work
+                <li key={grant.id || grant.number} style={{ border: '1px solid #eee', padding: '10px', marginBottom: '10px', borderRadius: '5px' }}>
+                  <strong>Title:</strong> {grant.title || 'N/A'} <br />
+                  <strong>Number:</strong> {grant.number || 'N/A'} <br />
+                  <strong>Agency:</strong> {grant.agencyName || grant.agencyCode || 'N/A'} <br />
+                  <strong>Status:</strong> {grant.oppStatus || 'N/A'} <br />
+                  <strong>Open Date:</strong> {grant.openDate || 'N/A'} <br />
+                  {/* Close date might be empty for forecasted/posted */}
+                  {grant.closeDate && <><strong>Close Date:</strong> {grant.closeDate} <br /></>}
                 </li>
               ))}
             </ul>
           ) : (
-            <p>No matching grants found in the mock database based on extracted keywords.</p>
+            <p>No matching grants found from Grants.gov based on extracted keywords.</p>
           )}
         </div>
       );
