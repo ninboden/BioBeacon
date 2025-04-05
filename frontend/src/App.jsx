@@ -1,4 +1,4 @@
-import { useState } from 'react'; // Removed useEffect for now
+import { useState } from 'react';
 import reactLogo from './assets/react.svg';
 import viteLogo from '/vite.svg';
 import './App.css';
@@ -16,74 +16,101 @@ function App() {
   const [error, setError] = useState(null);
 
   // Backend API URL (from AWS App Runner)
-  const backendUrl = 'https://jmpzukpkcs.us-east-2.awsapprunner.com';
+  const backendUrl = 'https://jmpzukpkcs.us-east-2.awsapprunner.com'; // Replace if yours is different
 
   // Function to handle form submission
   const handleProcessResearcher = (event) => {
-    event.preventDefault(); // Prevent default form submission if it were inside a <form>
+    event.preventDefault();
     setIsLoading(true);
     setError(null);
-    setProcessedData(null); // Clear previous results
+    setProcessedData(null);
 
     const apiUrl = `${backendUrl}/api/process-researcher`;
     const requestBody = { name, affiliation };
 
     console.log('Sending data to backend:', requestBody);
 
-    // Use fetch to make a POST request
     fetch(apiUrl, {
-      method: 'POST', // Specify POST method
-      headers: {
-        'Content-Type': 'application/json', // Tell the server we're sending JSON
-      },
-      body: JSON.stringify(requestBody), // Convert the JS object to a JSON string
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
     })
       .then(response => {
-        if (!response.ok) {
-          // If response is not ok, try to parse error message from backend
-          return response.json().then(errData => {
-            throw new Error(errData.error || `HTTP error! status: ${response.status}`);
-          }).catch(() => {
-            // Fallback if error response is not JSON or has no message
-            throw new Error(`HTTP error! status: ${response.status}`);
-          });
-        }
-        // Parse the successful JSON response body
-        return response.json();
+        // Try to parse JSON regardless of status code for potential error messages
+        return response.json().then(data => ({ ok: response.ok, status: response.status, data }));
       })
-      .then(data => {
-        console.log('Received data from backend:', data);
-        // Update state with the data received (contains message, received data, mockKeywords)
+      .then(({ ok, status, data }) => {
+        console.log('Received response from backend:', { ok, status, data });
+        if (!ok) {
+          // Throw an error with message from backend if available, else default HTTP error
+          throw new Error(data.error || data.details || `HTTP error! status: ${status}`);
+        }
+        // Success: Update state with the data received
         setProcessedData(data);
-        setIsLoading(false); // Stop loading
+        setIsLoading(false);
       })
       .catch(error => {
-        // Handle any errors during the fetch operation
         console.error('Error processing researcher:', error);
         setError(`Failed to process researcher: ${error.message}`);
-        setIsLoading(false); // Stop loading
+        setIsLoading(false);
       });
   };
 
   // Helper function to render the results area
   const renderResults = () => {
     if (isLoading) {
-      return <p>Processing...</p>;
+      return <p>Processing... Please wait.</p>;
     }
     if (error) {
+      // Display backend error details if available
       return <p style={{ color: 'red' }}>Error: {error}</p>;
     }
     if (processedData) {
       return (
         <div>
-          <h4>{processedData.message}</h4>
-          <p>Received Name: {processedData.received?.name}</p>
-          <p>Received Affiliation: {processedData.received?.affiliation}</p>
-          <p>Mock Keywords: {processedData.mockKeywords?.join(', ')}</p>
+          {/* Display Confirmation Message */}
+          <h4>{processedData.message || 'Processing Complete'}</h4>
+          <hr />
+
+          {/* Display Profile */}
+          <h3>Generated Profile:</h3>
+          {processedData.profile ? (
+            <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', background: '#f4f4f4', padding: '10px', borderRadius: '5px' }}>
+              {processedData.profile}
+            </pre>
+          ) : (
+            <p>No profile generated.</p>
+          )}
+          <hr />
+
+          {/* Display Keywords */}
+          <h3>Extracted Keywords:</h3>
+          {processedData.actualKeywords && processedData.actualKeywords.length > 0 && !processedData.actualKeywords[0].includes('_') ? ( // Check for keywords and avoid error indicators
+            <p>{processedData.actualKeywords.join(', ')}</p>
+          ) : (
+            <p>No keywords extracted or keyword extraction failed.</p>
+          )}
+          <hr />
+
+          {/* Display Grant Results */}
+          <h3>Potential Grant Results (Simulated):</h3>
+          {processedData.grantResults && processedData.grantResults.length > 0 ? (
+            <ul>
+              {processedData.grantResults.map(grant => (
+                <li key={grant.id}>
+                  <strong>{grant.title}</strong> ({grant.agency}) - ${grant.amount.toLocaleString()}
+                  <br />
+                  <small>Matched Keywords: {grant.keyword}</small>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No matching grants found in the mock database based on extracted keywords.</p>
+          )}
         </div>
       );
     }
-    return null; // Render nothing if no action taken yet
+    return <p>Enter researcher details above and click "Process Researcher".</p>; // Initial state
   };
 
   // Render the component
@@ -100,29 +127,30 @@ function App() {
       <h1>BioBeacon Researcher Input</h1>
       <div className="card">
         {/* Input fields and button */}
-        {/* We use a div instead of form to avoid default form submission for simplicity here */}
         <div>
           <div>
-            <label htmlFor="nameInput">Name: </label>
+            <label htmlFor="nameInput" style={{ marginRight: '5px' }}>Name: </label>
             <input
               id="nameInput"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter researcher name"
+              style={{ padding: '5px' }}
             />
           </div>
           <div style={{ marginTop: '10px', marginBottom: '10px' }}>
-            <label htmlFor="affiliationInput">Affiliation: </label>
+            <label htmlFor="affiliationInput" style={{ marginRight: '5px' }}>Affiliation: </label>
             <input
               id="affiliationInput"
               type="text"
               value={affiliation}
               onChange={(e) => setAffiliation(e.target.value)}
               placeholder="Enter institutional affiliation"
+              style={{ padding: '5px' }}
             />
           </div>
-          <button onClick={handleProcessResearcher} disabled={isLoading}>
+          <button onClick={handleProcessResearcher} disabled={isLoading} style={{ padding: '8px 15px', cursor: 'pointer' }}>
             {isLoading ? 'Processing...' : 'Process Researcher'}
           </button>
         </div>
@@ -138,4 +166,3 @@ function App() {
 }
 
 export default App;
-
