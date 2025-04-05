@@ -1,4 +1,4 @@
-// server.js - Backend: Perplexity -> OpenAI -> Grants.gov API calls
+// server.js - Backend: Perplexity -> OpenAI -> Grants.gov (per keyword)
 
 require('dotenv').config();
 const express = require('express');
@@ -10,17 +10,10 @@ const OpenAI = require('openai');
 const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 
-// Perplexity Key Check
-// ... (key check logic) ...
-if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') { console.warn('WARNING: PERPLEXITY_API_KEY not set or using placeholder.'); }
-else { console.log('Perplexity API Key Status: Loaded successfully.'); }
-
-// OpenAI Key Check & Client Initialization
-// ... (key check and client init logic) ...
-let openai;
-let isOpenAIInitialized = false;
-if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') { console.warn('WARNING: OPENAI_API_KEY not set or using placeholder.'); }
-else { try { openai = new OpenAI({ apiKey: openaiApiKey }); isOpenAIInitialized = true; console.log('OpenAI API Key Status: Loaded successfully & client initialized.'); } catch (error) { console.error("Error initializing OpenAI client:", error.message); } }
+// ... (API Key checks and OpenAI client initialization remain the same) ...
+if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') { console.warn('WARNING: PERPLEXITY_API_KEY not set or using placeholder.'); } else { console.log('Perplexity API Key Status: Loaded successfully.'); }
+let openai; let isOpenAIInitialized = false;
+if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') { console.warn('WARNING: OPENAI_API_KEY not set or using placeholder.'); } else { try { openai = new OpenAI({ apiKey: openaiApiKey }); isOpenAIInitialized = true; console.log('OpenAI API Key Status: Loaded successfully & client initialized.'); } catch (error) { console.error("Error initializing OpenAI client:", error.message); } }
 // --- End Environment Variable Setup ---
 
 const app = express();
@@ -28,48 +21,20 @@ app.use(cors());
 app.use(express.json());
 const port = 3001;
 
-// --- Mock Grant Data (Only used by direct /api/grants endpoint now) ---
-const mockGrants = [
-  { id: 1, title: 'Cancer Research Initiative', agency: 'NIH', amount: 500000, keyword: 'cancer' },
-  { id: 2, title: 'Neuroscience Fellowship', agency: 'NSF', amount: 150000, keyword: 'neuroscience' },
-  { id: 3, title: 'Public Health Study Grant', agency: 'CDC', amount: 300000, keyword: 'health' },
-  { id: 4, title: 'Plant Biology Research Grant', agency: 'NSF', amount: 250000, keyword: 'biology' },
-  { id: 5, title: 'AI in Medicine Grant', agency: 'NIH', amount: 400000, keyword: 'ai' },
-  { id: 6, title: 'Computational Biology Tools', agency: 'NSF', amount: 200000, keyword: 'computational biology' },
-];
+// --- Mock Grant Data (Only used by direct /api/grants endpoint) ---
+const mockGrants = [ /* ... mock data ... */ ];
 
 // --- API Endpoints ---
 
-app.get('/', (req, res) => {
-  res.send('Hello from the BioBeacon Backend!');
-});
+app.get('/', (req, res) => { res.send('Hello from the BioBeacon Backend!'); });
+app.get('/api/grants', (req, res) => { /* ... /api/grants endpoint remains the same ... */ });
 
-// GET endpoint for mock grant data (kept for potential direct use/testing)
-app.get('/api/grants', (req, res) => {
-  const keyword = req.query.keyword;
-  console.log(`Received GET request for grants with keyword: ${keyword}`);
-  let results = [];
-  if (keyword) {
-    const searchTerm = keyword.toLowerCase();
-    results = mockGrants.filter(grant =>
-      grant.keyword.toLowerCase().includes(searchTerm) ||
-      grant.title.toLowerCase().includes(searchTerm)
-    );
-    if (results.length === 0) {
-         return res.json({ message: `No grants found matching keyword: ${keyword}` });
-    }
-  } else {
-    results = mockGrants; // Return all if no keyword
-  }
-  res.json(results);
-});
-
-// POST endpoint - Full workflow: Perplexity -> OpenAI -> Grants.gov
+// POST endpoint - Full workflow: Perplexity -> OpenAI -> Grants.gov (per keyword)
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
   let actualProfile = null;
   let actualKeywords = [];
-  let grantResults = []; // Store results from Grants.gov call
+  let grantResults = []; // Store combined results from Grants.gov calls
 
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
@@ -81,7 +46,7 @@ app.post('/api/process-researcher', async (req, res) => {
   // --- Perplexity API Call ---
   console.log('Attempting Perplexity API call...');
   try {
-    // ... (Perplexity axios call remains the same) ...
+    // ... (Perplexity axios call logic remains the same) ...
     const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
     const requestData = { model: "sonar", messages: [ { role: "system", content: "Generate a concise, professional researcher profile..." }, { role: "user", content: `Generate profile for ${name}, affiliated with ${affiliation}.` } ] };
     const headers = { 'Authorization': `Bearer ${perplexityApiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
@@ -97,8 +62,8 @@ app.post('/api/process-researcher', async (req, res) => {
   if (isOpenAIInitialized && actualProfile) {
     console.log('Attempting OpenAI API call for keywords...');
     try {
-      // ... (OpenAI call remains the same) ...
-      const completion = await openai.chat.completions.create({ model: "gpt-3.5-turbo", messages: [ { role: "system", content: "Extract 5-10 relevant keywords suitable for searching grant databases... Return only a comma-separated list." }, { role: "user", content: actualProfile } ], temperature: 0.5, max_tokens: 50 });
+      // ... (OpenAI call logic remains the same) ...
+       const completion = await openai.chat.completions.create({ model: "gpt-3.5-turbo", messages: [ { role: "system", content: "Extract 5-10 relevant keywords suitable for searching grant databases... Return only a comma-separated list." }, { role: "user", content: actualProfile } ], temperature: 0.5, max_tokens: 50 });
       console.log('OpenAI API call successful.');
       const keywordString = completion.choices?.[0]?.message?.content;
       if (keywordString) { actualKeywords = keywordString.split(/,|\n/).map(kw => kw.trim().toLowerCase()).filter(kw => kw.length > 0); console.log('Extracted keywords from OpenAI:', actualKeywords); }
@@ -109,37 +74,46 @@ app.post('/api/process-researcher', async (req, res) => {
   // --- End OpenAI API Call ---
 
 
-  // --- Grants.gov API Call (using actualKeywords) ---
+  // --- Grants.gov API Call (One call per keyword, run in parallel) ---
   if (actualKeywords.length > 0 && !actualKeywords[0].includes('_failed') && !actualKeywords[0].includes('_not_initialized')) {
-      console.log(`Attempting Grants.gov API call with keywords: ${actualKeywords.join(' ')}`);
-      try {
-          const grantsApiUrl = 'https://api.grants.gov/v1/api/search2';
-          // Join keywords with space for the search query (adjust if API prefers OR, AND, etc.)
-          const keywordString = actualKeywords.join(' ');
+      console.log(`Attempting Grants.gov API calls for ${actualKeywords.length} keywords...`);
+      const grantsApiUrl = 'https://api.grants.gov/v1/api/search2';
+      const headers = { 'Content-Type': 'application/json' };
+      const searchPromises = actualKeywords.map(keyword => {
           const requestData = {
-              keyword: keywordString,
-              rows: 15, // Request up to 15 results
-              oppStatuses: "forecasted|posted" // Look for current opportunities
-              // Add other filters like 'agencies' if needed later
+              keyword: keyword, // Use individual keyword
+              rows: 5, // Limit results per keyword (adjust as needed)
+              oppStatuses: "forecasted|posted"
           };
-          const headers = { 'Content-Type': 'application/json' };
+          console.log(`  -> Querying for keyword: ${keyword}`);
+          // Return the promise from axios.post
+          return axios.post(grantsApiUrl, requestData, { headers })
+                     .catch(err => { // Add basic error handling for individual calls
+                         console.error(`Error fetching grants for keyword "${keyword}":`, err.response ? err.response.data : err.message);
+                         return null; // Return null or a specific error object if a call fails
+                     });
+      });
 
-          const response = await axios.post(grantsApiUrl, requestData, { headers });
+      // Wait for all promises to settle (either resolve or reject)
+      const results = await Promise.allSettled(searchPromises);
 
-          console.log('Grants.gov API call successful. Status:', response.status);
-          // Extract results from the 'oppHits' array within the 'data' object
-          grantResults = response.data?.data?.oppHits || [];
-          console.log(`Found ${grantResults.length} grant results from Grants.gov.`);
+      let combinedOppHits = [];
+      results.forEach((result, index) => {
+          const keyword = actualKeywords[index];
+          if (result.status === 'fulfilled' && result.value && result.value.data?.data?.oppHits) {
+              console.log(`  <- Received ${result.value.data.data.oppHits.length} results for keyword: ${keyword}`);
+              combinedOppHits = combinedOppHits.concat(result.value.data.data.oppHits);
+          } else if (result.status === 'rejected') {
+              // Error already logged in the individual catch block above
+              console.log(`  <- Failed to get results for keyword: ${keyword}`);
+          } else {
+               console.log(`  <- No results or unexpected response for keyword: ${keyword}`);
+          }
+      });
 
-      } catch (error) {
-          console.error('Error calling Grants.gov API:');
-          if (error.response) { console.error('  Status:', error.response.status); console.error('  Data:', error.response.data); }
-          else if (error.request) { console.error('  Error: No response received.'); }
-          else { console.error('  Error Message:', error.message); }
-          // Don't stop execution, just return empty results for this step
-          grantResults = []; // Set empty results on error
-          // Optionally add an error indicator to the main response?
-      }
+      grantResults = combinedOppHits; // Assign combined results
+      console.log(`Aggregated ${grantResults.length} total grant results (before deduplication).`);
+
   } else {
       console.log('Skipping Grants.gov call because no valid keywords were obtained.');
   }
@@ -148,18 +122,18 @@ app.post('/api/process-researcher', async (req, res) => {
 
   // --- Final Response ---
   res.json({
-    message: "Successfully processed researcher: Perplexity -> OpenAI -> Grants.gov.", // Updated message
+    message: "Successfully processed researcher: Perplexity -> OpenAI -> Grants.gov (per keyword).", // Updated message
     received: { name, affiliation },
     profile: actualProfile,
     actualKeywords: actualKeywords,
-    grantResults: grantResults // Send back actual grant results
+    grantResults: grantResults // Send back combined grant results
   });
 });
 
 
 // --- Start Server ---
 app.listen(port, () => {
-  // ... (startup logs) ...
+  // ... (startup logs remain the same) ...
   console.log(`BioBeacon backend server listening at http://localhost:${port}`);
   console.log(`Perplexity API Key Status on startup: ${perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
   console.log(`OpenAI API Key Status on startup: ${openaiApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
