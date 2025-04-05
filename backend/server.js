@@ -1,14 +1,14 @@
-// server.js - Backend prepared for OpenAI calls
+// server.js - Backend making real Perplexity & OpenAI calls
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const OpenAI = require('openai'); // Added OpenAI library
+const OpenAI = require('openai');
 
 // --- Environment Variable Setup & Client Initialization ---
 const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
-const openaiApiKey = process.env.OPENAI_API_KEY; // Added OpenAI Key
+const openaiApiKey = process.env.OPENAI_API_KEY;
 
 // Perplexity Key Check
 if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
@@ -18,18 +18,20 @@ if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE
 }
 
 // OpenAI Key Check & Client Initialization
-let openai; // Declare openai client variable
+let openai;
+let isOpenAIInitialized = false;
 if (!openaiApiKey || openaiApiKey === 'YOUR_OPENAI_API_KEY_GOES_HERE') {
   console.warn('WARNING: OPENAI_API_KEY environment variable not set or using placeholder. Real OpenAI calls will fail.');
-  // Optionally initialize with a dummy key or handle differently if needed
-  // openai = new OpenAI({ apiKey: 'DUMMY_KEY_FOR_INITIALIZATION' }); // Example if constructor requires key
 } else {
-  console.log('OpenAI API Key Status: Loaded successfully.');
-  // Initialize OpenAI client only if key is valid
-  openai = new OpenAI({ apiKey: openaiApiKey });
+  try {
+    openai = new OpenAI({ apiKey: openaiApiKey });
+    isOpenAIInitialized = true;
+    console.log('OpenAI API Key Status: Loaded successfully & client initialized.');
+  } catch (error) {
+      console.error("Error initializing OpenAI client:", error.message);
+  }
 }
 // --- End Environment Variable Setup ---
-
 
 const app = express();
 app.use(cors());
@@ -71,11 +73,11 @@ app.get('/api/grants', (req, res) => {
   res.json(results);
 });
 
-// POST endpoint - Calls Perplexity, simulates ChatGPT
+// POST endpoint - Calls Perplexity, then calls OpenAI
 app.post('/api/process-researcher', async (req, res) => {
   const { name, affiliation } = req.body;
   let actualProfile = null;
-  let simulatedKeywords = []; // Keep simulation for now
+  let actualKeywords = []; // Store keywords from OpenAI
 
   console.log('Received POST request to /api/process-researcher');
   console.log('  Name:', name);
@@ -85,76 +87,99 @@ app.post('/api/process-researcher', async (req, res) => {
     return res.status(400).json({ error: 'Missing name or affiliation in request body' });
   }
 
-  // Check Perplexity Key before proceeding
+  // --- Perplexity API Call ---
   if (!perplexityApiKey || perplexityApiKey === 'YOUR_PERPLEXITY_API_KEY_GOES_HERE') {
       console.error("Perplexity API Key is not configured correctly.");
       return res.status(500).json({ error: "Server configuration error: Missing Perplexity API Key" });
   }
-
   console.log('Attempting real Perplexity API call...');
-  // --- Perplexity API Call ---
   try {
     const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
-    const requestData = {
-      model: "sonar", // Or sonar-deep-research etc.
-      messages: [
-        { role: "system", content: "Generate a concise, professional researcher profile suitable for finding grant keywords. Focus on likely research areas based on name and affiliation." },
-        { role: "user", content: `Generate profile for ${name}, affiliated with ${affiliation}.` }
-      ]
-    };
+    const requestData = { model: "sonar", messages: [ { role: "system", content: "Generate a concise, professional researcher profile suitable for finding grant keywords. Focus on likely research areas based on name and affiliation." }, { role: "user", content: `Generate profile for ${name}, affiliated with ${affiliation}.` } ] };
     const headers = { 'Authorization': `Bearer ${perplexityApiKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
     const response = await axios.post(perplexityApiUrl, requestData, { headers });
     console.log('Perplexity API call successful.');
-
     if (response.data?.choices?.[0]?.message?.content) {
        actualProfile = response.data.choices[0].message.content;
        console.log('Successfully extracted profile from Perplexity.');
-    } else {
-       console.warn('Could not find profile in expected Perplexity response location.');
-       actualProfile = JSON.stringify(response.data);
-    }
+    } else { console.warn('Could not find profile in expected Perplexity response location.'); actualProfile = JSON.stringify(response.data); }
   } catch (error) {
     console.error('Error calling Perplexity API:');
     // ... (error logging) ...
-    if (error.response) { console.error('  Status:', error.response.status); console.error('  Data:', error.response.data); }
-    else if (error.request) { console.error('  Error: No response received.'); }
-    else { console.error('  Error Message:', error.message); }
+    if (error.response) { console.error('  Status:', error.response.status); console.error('  Data:', error.response.data); } else if (error.request) { console.error('  Error: No response received.'); } else { console.error('  Error Message:', error.message); }
     return res.status(500).json({ error: "Failed to call Perplexity API", details: error.response ? error.response.data : error.message });
   }
   // --- End Perplexity API Call ---
 
 
-  // --- Simulate ChatGPT API Call (KEEPING simulation for now) ---
-  if (actualProfile) {
-      console.log('Simulating ChatGPT API call with received profile...');
-      // Log OpenAI client status for debugging
-      console.log('OpenAI Client Status:', openai ? 'Initialized' : 'Not Initialized (Check API Key)');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-      simulatedKeywords = ["simulated", "keywords", "using", name.toLowerCase().split(' ')[0]]; // Slightly different mock keywords
-      console.log('Simulated keywords generated:', simulatedKeywords);
-  } else {
-      console.log('Skipping ChatGPT simulation because profile was not obtained.');
+  // --- OpenAI API Call for Keywords ---
+  if (isOpenAIInitialized && actualProfile) { // Check if client is ready and we have a profile
+    console.log('Attempting real OpenAI API call for keywords...');
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo", // Or a different model like gpt-4
+        messages: [
+          { role: "system", content: "You are an expert in academic research funding. Extract 5-10 relevant keywords suitable for searching grant databases (like Grants.gov) from the provided researcher profile. Return only a comma-separated list of keywords." },
+          { role: "user", content: actualProfile }
+        ],
+        temperature: 0.5, // Adjust creativity
+        max_tokens: 50, // Limit token usage for keywords
+      });
+
+      console.log('OpenAI API call successful.');
+      // console.log('OpenAI Response Data:', JSON.stringify(completion, null, 2)); // Log raw response
+
+      // Extract keywords from the response content
+      const keywordString = completion.choices?.[0]?.message?.content;
+      if (keywordString) {
+        // Simple parsing: split by comma or newline, trim whitespace, filter empty
+        actualKeywords = keywordString.split(/,|\n/).map(kw => kw.trim()).filter(kw => kw.length > 0);
+        console.log('Successfully extracted keywords from OpenAI:', actualKeywords);
+      } else {
+        console.warn('Could not find keywords in expected OpenAI response location.');
+        actualKeywords = ['parsing_failed']; // Indicate parsing issue
+      }
+
+    } catch (error) {
+      console.error('Error calling OpenAI API:');
+      if (error instanceof OpenAI.APIError) {
+        console.error('  Status:', error.status);
+        console.error('  Message:', error.message);
+        console.error('  Code:', error.code);
+        console.error('  Type:', error.type);
+      } else {
+        console.error('  Error Message:', error.message);
+      }
+      // Don't stop execution, just note the failure; maybe keep mock keywords?
+      actualKeywords = ['openai_call_failed']; // Indicate call failure
+    }
+  } else if (!actualProfile) {
+      console.log('Skipping OpenAI call because profile was not obtained from Perplexity.');
+  } else { // !isOpenAIInitialized
+      console.log('Skipping OpenAI call because OpenAI client is not initialized (check API Key).');
+      actualKeywords = ['openai_not_initialized'];
   }
-  // --- End ChatGPT Simulation ---
+  // --- End OpenAI API Call ---
 
 
   // --- Placeholder for Grants.gov call ---
-  // TODO: Call Grants.gov API with keywords
+  // TODO: Call Grants.gov API with actualKeywords
 
   res.json({
-    message: "Successfully processed researcher, called Perplexity, and simulated ChatGPT.",
+    message: "Successfully processed researcher, called Perplexity, and attempted OpenAI.", // Updated message
     received: { name, affiliation },
     profile: actualProfile,
-    simulatedKeywords: simulatedKeywords // Still sending simulated keywords
+    actualKeywords: actualKeywords // Send back actual keywords (or error indicators)
   });
 });
 
 
 // --- Start Server ---
 app.listen(port, () => {
+  // ... (startup logs) ...
   console.log(`BioBeacon backend server listening at http://localhost:${port}`);
   console.log(`Perplexity API Key Status on startup: ${perplexityApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
-  console.log(`OpenAI API Key Status on startup: ${openaiApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`); // Added OpenAI key status
+  console.log(`OpenAI API Key Status on startup: ${openaiApiKey ? 'Loaded' : 'Not Loaded or Placeholder'}`);
   console.log('Available endpoints:');
   console.log(`  GET /`);
   console.log(`  GET /api/grants?keyword=...`);
