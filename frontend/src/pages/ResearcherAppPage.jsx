@@ -11,7 +11,7 @@ function ResearcherAppPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const backendUrl = 'https://jmpzukpkcs.us-east-2.awsapprunner.com'; // Use DEPLOYED backend URL
+  const backendUrl = 'https://jmpzukpkcs.us-east-2.awsapprunner.com';
 
   const handleProcessResearcher = (name, affiliation) => {
     setIsLoading(true);

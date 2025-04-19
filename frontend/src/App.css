@@ -1,393 +1,54 @@
-/* frontend/src/App.css */
-/* --- FULL CODE (Should match original Step 66 version) --- */
+/* --- Styles for Assistant Page Layout --- */
 
-/* Reset basic styles */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f8f9fa;
-  color: #333;
-  line-height: 1.6;
+.assistant-layout-container {
+  display: flex; /* Enable Flexbox */
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  gap: 25px; /* Space between controls and response */
+  margin-top: 20px; /* Space below grant info */
 }
 
-.app-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: 20px;
-  box-sizing: border-box;
-  width: 100%;
+.assistant-controls {
+  flex: 1; /* Allow controls section to grow */
+  min-width: 280px; /* Minimum width before wrapping */
+  /* Adjust flex-basis if you want stricter width control */
+  /* flex-basis: 40%; */
 }
 
-.app-header {
-  text-align: center;
-  width: 100%;
-  max-width: 1160px; /* Max width for content alignment */
-  margin: 0 auto 30px auto;
-  padding: 15px 0;
-  border-bottom: 1px solid #dee2e6;
-  box-sizing: border-box;
+.assistant-response-display {
+  flex: 1; /* Allow response section to grow */
+  min-width: 300px; /* Minimum width */
+  /* Adjust flex-basis if needed */
+  /* flex-basis: 55%; */
+  border-left: 1px solid #eee; /* Separator line */
+  padding-left: 25px; /* Space left of response */
 }
 
-.app-header h1 {
-  color: #007bff;
-  margin: 0;
+/* On smaller screens, stack the controls and response */
+@media (max-width: 768px) { /* Adjust breakpoint as needed */
+  .assistant-layout-container {
+    flex-direction: column; /* Stack vertically */
+    gap: 30px; /* Adjust gap for vertical layout */
+  }
+  .assistant-response-display {
+    border-left: none; /* Remove side border */
+    padding-left: 0; /* Remove padding */
+    border-top: 1px solid #eee; /* Add top border */
+    padding-top: 20px; /* Add padding above response */
+    margin-top: 10px; /* Add margin above response */
+  }
 }
+/* --- End Styles for Assistant Page --- */
 
-/* Original main content layout (used by ResearcherAppPage) */
-.main-content {
-  display: flex;
-  flex-wrap: wrap; /* Allows items to wrap onto next line */
-  width: 100%;
-  max-width: 1160px; /* Consistent max width */
-  margin: 0 auto;
-  gap: 25px; /* Space between input and results sections */
-  align-items: flex-start; /* Align items to the top */
-}
-
-.card {
-  background-color: #ffffff;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 25px;
-  margin-bottom: 25px; /* Spacing below cards */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.07);
-  box-sizing: border-box;
-}
-
-/* Original input/results section sizing */
-.input-section {
-  flex: 0 0 350px; /* Fixed width for input section */
-}
-
-.results-section {
-  flex: 1; /* Takes remaining space */
-  min-width: 300px; /* Minimum width before wrapping */
-}
-
-
-.input-section h2, .results-section h2 {
-  margin-top: 0;
-  color: #495057;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-  margin-bottom: 25px;
-}
-
-/* Input Form Group Styling */
-.form-group {
-  display: flex;
-  align-items: center;
-  margin-bottom: 18px;
-  gap: 10px;
-}
-
-.form-group label {
-  font-weight: bold;
-  color: #495057;
-  flex: 0 0 80px; /* Fixed label width */
-  text-align: right;
-  padding-right: 5px;
-  font-size: 0.9em;
-}
-
-.form-group input[type="text"],
-.form-group input[type="email"], /* Added for login */
-.form-group input[type="password"] /* Added for login */
-{
-  flex-grow: 1;
-  padding: 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-/* Input section specific button, general button styling might be better */
-.input-section .submit-button,
-.submit-button /* More general button style */
-{
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 12px 25px;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  margin-top: 10px;
-  /* display: block; */ /* Removed to allow inline-flex behavior if needed */
-  /* margin-left: auto; */ /* Centering might depend on context now */
-  /* margin-right: auto; */
-  min-width: 180px; /* Ensure buttons have decent width */
-  text-align: center;
-}
-
-.submit-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.submit-button:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
-}
-
-
-/* Tab Styling */
-.tabs {
-  display: flex;
-  border-bottom: 2px solid #dee2e6;
-  margin-bottom: 0; /* Align with content padding */
-  padding: 0;
-  flex-wrap: wrap; /* Allow tabs to wrap on small screens */
-}
-
-.tabs button {
+/* --- Styles for Sorting Controls --- */
+.sorting-controls {
+  background-color: #f8f9fa; /* Light background for the controls row */
   padding: 10px 15px;
-  cursor: pointer;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background-color: transparent;
-  margin-bottom: -2px; /* Overlap border */
-  font-size: 0.95rem;
-  color: #007bff;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-  white-space: nowrap; /* Prevent text wrapping */
-}
-
-.tabs button:hover {
-  background-color: #e9ecef;
-}
-
-.tabs button.active {
-  border-color: #007bff;
-  font-weight: bold;
-  color: #0056b3;
-}
-
-.tab-content {
-  padding: 20px 0 0 0; /* Add padding top */
-}
-
-/* Results section styling */
-.results-section .loading-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  flex-direction: column;
-  min-height: 100px;
-}
-
-.spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-left-color: #007bff;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.results-section .loading-message {
-  font-style: italic;
-  color: #6c757d;
-  margin: 0;
-}
-
-.results-section .error-message,
-.error-message /* General error message style */
- {
-  font-style: normal; /* Changed from italic */
-  color: #dc3545;
-  font-weight: bold;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
   border-radius: 4px;
-  padding: 15px;
-  text-align: center; /* Default center */
-  margin-top: 15px; /* Spacing above */
+  margin-bottom: 20px; /* Space above the list */
+  border: 1px solid #e9ecef;
 }
 
-/* Status heading styles */
-.results-section h4 {
-  font-weight: bold;
-  color: #28a745; /* Default success */
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
-  margin-top: 0; /* Remove default top margin */
+.sorting-controls label {
+  margin-right: 8px; /* Space after label */
 }
-.results-section h4[style*="color: #ffc107"] { color: #ffc107 !important; } /* Partial success */
-.results-section h4[style*="color: #dc3545"] { color: #dc3545 !important; } /* Failure */
-
-
-/* Style individual result sections */
-.profile-section, .keywords-section, .grants-section, .ideation-section {
-    padding: 15px 0;
-    margin-top: 0;
-    border-radius: 0;
-    border: none;
-    background-color: transparent;
-}
-
-.profile-section .profile-text {
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    padding: 15px;
-    border-radius: 4px;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 0.9em;
-    line-height: 1.5;
-    max-height: 400px; /* Limit height */
-    overflow-y: auto; /* Add scroll for long profiles */
-}
-
-.keywords-section .keywords-list {
-    font-style: normal;
-    color: #333;
-    background-color: #e9ecef;
-    padding: 10px 15px;
-    border-radius: 4px;
-    display: inline-block; /* Fit content width */
-    line-height: 1.8;
-}
-
-.grants-section .grants-list {
-    list-style: none;
-    padding-left: 0;
-    margin-top: 0;
-}
-
-.grant-item {
-    border: 1px solid #e0e0e0;
-    background-color: #ffffff;
-    padding: 20px;
-    margin-bottom: 18px;
-    border-radius: 8px;
-    line-height: 1.6;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.grant-item:hover {
-    border-color: #007bff;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-}
-
-.grant-item strong {
-    color: #0056b3;
-    display: inline-block;
-    margin-bottom: 0;
-    margin-right: 5px;
-}
-
-.grant-item br {
-    display: block; /* Ensure line breaks work */
-    content: "";
-    margin-top: 6px;
-}
-
-.grant-item small { /* Style for potentially adding smaller text later */
-    color: #5a6268;
-    display: block;
-    margin-top: 8px;
-    font-size: 0.85em;
-}
-
-/* --- Ideation Section Styles --- */
-.ideation-section {
-    padding: 15px 0;
-}
-.ideation-list {
-    list-style: disc;
-    padding-left: 25px; /* Indent list */
-    margin-top: 0;
-}
-.ideation-item {
-    margin-bottom: 10px;
-    padding: 8px;
-    background-color: #e9f5ff; /* Light blue background */
-    border-left: 3px solid #007bff; /* Blue left border */
-    border-radius: 0 4px 4px 0;
-}
-/* --- End Ideation Section Styles --- */
-
-/* Footer */
-.app-footer {
-  width: 100%;
-  max-width: 1160px;
-  margin: auto auto 0 auto; /* Pushes footer to bottom if content is short */
-  padding: 20px 0;
-  border-top: 1px solid #dee2e6;
-  font-size: 0.9em;
-  color: #6c757d;
-  text-align: center;
-}
-
-/* --- Responsive Media Queries --- */
-/* Adjust layout for medium screens */
-@media (max-width: 800px) {
-  .main-content {
-    flex-direction: column; /* Stack input/results */
-    gap: 0; /* Remove gap when stacked */
-    align-items: center; /* Center items */
-    max-width: 600px; /* Reduce max width */
-  }
-  .input-section, .results-section {
-    flex: none; /* Reset flex properties */
-    width: 100%; /* Full width when stacked */
-    min-width: unset !important;
-  }
-  .app-container {
-    padding: 20px 10px 10px 10px; /* Reduce padding */
-  }
-  .app-header {
-     padding: 15px;
-  }
-}
-
-/* Adjust layout for small screens */
-@media (max-width: 600px) {
-  .form-group {
-    flex-direction: column; /* Stack label and input */
-    align-items: stretch; /* Stretch items */
-    gap: 5px;
-  }
-  .form-group label {
-    flex-basis: auto; /* Reset label basis */
-    text-align: left; /* Align label left */
-    padding-right: 0;
-    margin-bottom: 5px;
-    width: 100%;
-  }
-  .form-group input[type="text"],
-  .form-group input[type="email"],
-  .form-group input[type="password"]
-  {
-    width: calc(100% - 20px); /* Adjust width considering padding */
-  }
-  .card {
-    padding: 15px; /* Reduce card padding */
-  }
-   .main-content {
-     max-width: 100%; /* Allow full width */
-   }
-   .tabs button {
-     padding: 8px 10px;
-     font-size: 0.85rem; /* Smaller tab font */
-   }
-}
+/* --- End Sorting Controls --- */
